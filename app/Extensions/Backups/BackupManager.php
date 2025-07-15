@@ -2,6 +2,7 @@
 
 namespace App\Extensions\Backups;
 
+use App\Extensions\Filesystem\BorgFilesystem;
 use Closure;
 use Aws\S3\S3Client;
 use Illuminate\Support\Arr;
@@ -121,6 +122,16 @@ class BackupManager
         $client = new S3Client($config);
 
         return new S3Filesystem($client, $config['bucket'], $config['prefix'] ?? '', $config['options'] ?? []);
+    }
+
+    /**
+     * Creates a new Borg adapter.
+     *
+     * @param  array<string, string>  $config
+     */
+    public function createBorgAdapater(array $config): FilesystemAdapter
+    {
+        return new BorgFilesystem();
     }
 
     /**

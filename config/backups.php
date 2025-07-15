@@ -62,5 +62,15 @@ return [
 
             'storage_class' => env('AWS_BACKUPS_STORAGE_CLASS'),
         ],
+
+        // Configuration for storing backups in a Borg repository.
+        'borg' => [
+            'adapter' => Backup::ADAPTER_BORG,
+
+            'repository' => env('BORG_REPOSITORY'),
+            'passphrase' => env('BORG_PASSPHRASE',),
+            'ssh_key' => env('BORG_SSH_KEY',),
+            'binary' => env('BORG_BINARY', 'borg'),
+        ],
     ],
 ];

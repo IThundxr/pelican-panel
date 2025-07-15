@@ -471,6 +471,7 @@ class Settings extends Page implements HasForms
                 ->options([
                     Backup::ADAPTER_DAEMON => 'Wings',
                     Backup::ADAPTER_AWS_S3 => 'S3',
+                    Backup::ADAPTER_BORG => 'Borg',
                 ])
                 ->live()
                 ->default(env('APP_BACKUP_DRIVER', config('backups.default'))),
@@ -527,6 +528,25 @@ class Settings extends Page implements HasForms
                         ->formatStateUsing(fn ($state): bool => (bool) $state)
                         ->afterStateUpdated(fn ($state, Set $set) => $set('AWS_USE_PATH_STYLE_ENDPOINT', (bool) $state))
                         ->default(env('AWS_USE_PATH_STYLE_ENDPOINT', config('backups.disks.s3.use_path_style_endpoint'))),
+                ]),
+            Section::make(trans('admin/setting.backup.borg.borg_title'))
+                ->columns()
+                ->visible(fn (Get $get) => $get('APP_BACKUP_DRIVER') === Backup::ADAPTER_BORG)
+                ->schema([
+                    TextInput::make('BORG_REPOSITORY')
+                        ->label(trans('admin/setting.backup.borg.repository'))
+                        ->required()
+                        ->placeholder('/path/to/borg/repository'),
+                    TextInput::make('BORG_PASSPHRASE')
+                        ->label(trans('admin/setting.backup.borg.passphrase'))
+                        ->default(config('backups.disks.borg.passphrase')),
+                    TextInput::make('BORG_SSH_KEY')
+                        ->label(trans('admin/setting.backup.borg.ssh_key'))
+                        ->default(config('backups.disks.borg.ssh_key')),
+                    TextInput::make('BORG_BINARY')
+                        ->label(trans('admin/setting.backup.borg.binary'))
+                        ->required()
+                        ->default(config('backups.disks.borg.binary')),
                 ]),
         ];
     }

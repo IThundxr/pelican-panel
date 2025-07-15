@@ -86,6 +86,13 @@ return [
             'endpoint' => 'Endpoint',
             'use_path_style_endpoint' => 'Use Path Style Endpoint',
         ],
+        'borg' => [
+            'borg_title' => 'Borg Configuration',
+            'repository' => 'The path to the Borg repository',
+            'passphrase' => 'The passphrase for the Borg repository',
+            'ssh_key' => 'The SSH Key for the Borg repository',
+            'binary' => 'The path to the Borg Binary',
+        ],
     ],
     'oauth' => [
         'enable' => 'Enable',
