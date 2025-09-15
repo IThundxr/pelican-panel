@@ -2,15 +2,16 @@
 
 namespace App\Services\Backups;
 
-use App\Extensions\Filesystem\S3Filesystem;
-use Aws\S3\S3Client;
-use Illuminate\Http\Response;
-use App\Models\Backup;
-use Illuminate\Database\ConnectionInterface;
-use App\Extensions\Backups\BackupManager;
-use App\Repositories\Daemon\DaemonBackupRepository;
 use App\Exceptions\Service\Backup\BackupLockedException;
+use App\Extensions\Backups\Adapter\S3BackupAdapter;
+use App\Extensions\Backups\BackupManager;
+use App\Models\Backup;
+use App\Repositories\Daemon\DaemonBackupRepository;
+use Aws\S3\S3Client;
 use Exception;
+use Illuminate\Database\ConnectionInterface;
+use Illuminate\Http\Response;
+use Throwable;
 
 class DeleteBackupService
 {
@@ -24,7 +25,7 @@ class DeleteBackupService
      * Deletes a backup from the system. If the backup is stored in S3 a request
      * will be made to delete that backup from the disk as well.
      *
-     * @throws \Throwable
+     * @throws Throwable
      */
     public function handle(Backup $backup): void
     {
@@ -62,14 +63,14 @@ class DeleteBackupService
     /**
      * Deletes a backup from an S3 disk.
      *
-     * @throws \Throwable
+     * @throws Throwable
      */
     protected function deleteFromS3(Backup $backup): void
     {
         $this->connection->transaction(function () use ($backup) {
             $backup->delete();
 
-            /** @var S3Filesystem $adapter */
+            /** @var S3BackupAdapter $adapter */
             $adapter = $this->manager->adapter(Backup::ADAPTER_AWS_S3);
 
             /** @var S3Client $client */

@@ -2,6 +2,7 @@
 
 namespace App\Services\Servers;
 
+use Throwable;
 use App\Models\Allocation;
 use App\Models\Node;
 use App\Models\Server;
@@ -10,7 +11,7 @@ use App\Services\Nodes\NodeJWTService;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\ConnectionInterface;
 use Illuminate\Support\Facades\Http;
-use Lcobucci\JWT\Token\Plain;
+use Lcobucci\JWT\UnencryptedToken;
 
 class TransferServerService
 {
@@ -22,7 +23,7 @@ class TransferServerService
         private NodeJWTService $nodeJWTService,
     ) {}
 
-    private function notify(ServerTransfer $transfer, Plain $token): void
+    private function notify(ServerTransfer $transfer, UnencryptedToken $token): void
     {
         Http::daemon($transfer->oldNode)->post("/api/servers/{$transfer->server->uuid}/transfer", [
             'url' => $transfer->newNode->getConnectionAddress() . '/api/transfers',
@@ -39,7 +40,7 @@ class TransferServerService
      *
      * @param  int[]  $additional_allocations
      *
-     * @throws \Throwable
+     * @throws Throwable
      */
     public function handle(Server $server, int $node_id, ?int $allocation_id = null, ?array $additional_allocations = []): bool
     {

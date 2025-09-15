@@ -2,8 +2,8 @@
 
 namespace App\Extensions\OAuth;
 
-use Filament\Forms\Components\Component;
-use Filament\Forms\Components\Wizard\Step;
+use Filament\Schemas\Components\Component;
+use Filament\Schemas\Components\Wizard\Step;
 
 interface OAuthSchemaInterface
 {
@@ -34,4 +34,6 @@ interface OAuthSchemaInterface
     public function isEnabled(): bool;
 
     public function shouldCreateMissingUsers(): bool;
+
+    public function shouldLinkMissingUsers(): bool;
 }

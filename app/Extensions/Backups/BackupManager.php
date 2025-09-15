@@ -2,22 +2,24 @@
 
 namespace App\Extensions\Backups;
 
-use Closure;
+use App\Extensions\Backups\Adapter\ResticBackupAdapter;
+use App\Extensions\Backups\Adapter\S3BackupAdapter;
+use App\Extensions\Backups\Adapter\WingsBackupAdapter;
+use App\Models\Backup;
 use Aws\S3\S3Client;
+use Closure;
+use Illuminate\Foundation\Application;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
+use InvalidArgumentException;
 use Webmozart\Assert\Assert;
-use Illuminate\Foundation\Application;
-use League\Flysystem\FilesystemAdapter;
-use App\Extensions\Filesystem\S3Filesystem;
-use League\Flysystem\InMemory\InMemoryFilesystemAdapter;
 
 class BackupManager
 {
     /**
      * The array of resolved backup drivers.
      *
-     * @var array<string, FilesystemAdapter>
+     * @var array<string, BackupAdapter>
      */
     protected array $adapters = [];
 
@@ -33,7 +35,7 @@ class BackupManager
     /**
      * Returns a backup adapter instance.
      */
-    public function adapter(?string $name = null): FilesystemAdapter
+    public function adapter(?string $name = null): BackupAdapter
     {
         return $this->get($name ?: $this->getDefaultAdapter());
     }
@@ -41,7 +43,7 @@ class BackupManager
     /**
      * Set the given backup adapter instance.
      */
-    public function set(string $name, FilesystemAdapter $disk): self
+    public function set(string $name, BackupAdapter $disk): self
     {
         $this->adapters[$name] = $disk;
 
@@ -51,7 +53,7 @@ class BackupManager
     /**
      * Gets a backup adapter.
      */
-    protected function get(string $name): FilesystemAdapter
+    protected function get(string $name): BackupAdapter
     {
         return $this->adapters[$name] = $this->resolve($name);
     }
@@ -59,12 +61,12 @@ class BackupManager
     /**
      * Resolve the given backup disk.
      */
-    protected function resolve(string $name): FilesystemAdapter
+    protected function resolve(string $name): BackupAdapter
     {
         $config = $this->getConfig($name);
 
         if (empty($config['adapter'])) {
-            throw new \InvalidArgumentException("Backup disk [$name] does not have a configured adapter.");
+            throw new InvalidArgumentException("Backup disk [$name] does not have a configured adapter.");
         }
 
         $adapter = $config['adapter'];
@@ -75,14 +77,20 @@ class BackupManager
 
         $adapterMethod = 'create' . Str::studly($adapter) . 'Adapter';
         if (method_exists($this, $adapterMethod)) {
-            $instance = $this->{$adapterMethod}($config);
+            // Special handling for Restic adapter, which requires S3 configuration.
+            if ($adapter === Backup::ADAPTER_RESTIC) {
+                $s3Config = $this->getConfig(Backup::ADAPTER_AWS_S3);
+                $instance = $this->{$adapterMethod}($config, $s3Config);
+            } else {
+                $instance = $this->{$adapterMethod}($config);
+            }
 
-            Assert::isInstanceOf($instance, FilesystemAdapter::class);
+            Assert::isInstanceOf($instance, BackupAdapter::class);
 
             return $instance;
         }
 
-        throw new \InvalidArgumentException("Adapter [$adapter] is not supported.");
+        throw new InvalidArgumentException("Adapter [$adapter] is not supported.");
     }
 
     /**
@@ -100,9 +108,9 @@ class BackupManager
      *
      * @param  array<string, string>  $config
      */
-    public function createWingsAdapter(array $config): FilesystemAdapter
+    public function createWingsAdapter(array $config): BackupAdapter
     {
-        return new InMemoryFilesystemAdapter();
+        return new WingsBackupAdapter();
     }
 
     /**
@@ -110,7 +118,7 @@ class BackupManager
      *
      * @param  array<string, string>  $config
      */
-    public function createS3Adapter(array $config): FilesystemAdapter
+    public function createS3Adapter(array $config): BackupAdapter
     {
         $config['version'] = 'latest';
 
@@ -120,7 +128,18 @@ class BackupManager
 
         $client = new S3Client($config);
 
-        return new S3Filesystem($client, $config['bucket'], $config['prefix'] ?? '', $config['options'] ?? []);
+        return new S3BackupAdapter($client, $config['bucket']);
+    }
+
+    /**
+     * Creates a new Restic adapter.
+     *
+     * @param  array<string, string>  $resticConfig
+     * @param  array<string, string>  $s3Config
+     */
+    public function createResticAdapter(array $resticConfig, array $s3Config): BackupAdapter
+    {
+        return new ResticBackupAdapter($resticConfig, $s3Config);
     }
 
     /**

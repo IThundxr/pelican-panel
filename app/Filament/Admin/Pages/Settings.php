@@ -10,42 +10,44 @@ use App\Notifications\MailTested;
 use App\Traits\EnvironmentWriterTrait;
 use App\Traits\Filament\CanCustomizeHeaderActions;
 use App\Traits\Filament\CanCustomizeHeaderWidgets;
+use BackedEnum;
 use Exception;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
-use Filament\Forms\Components\Actions;
-use Filament\Forms\Components\Actions\Action as FormAction;
-use Filament\Forms\Components\Component;
 use Filament\Forms\Components\FileUpload;
-use Filament\Forms\Components\Group;
 use Filament\Forms\Components\Hidden;
-use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\Tabs;
-use Filament\Forms\Components\Tabs\Tab;
 use Filament\Forms\Components\TagsInput;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Forms\Components\ToggleButtons;
 use Filament\Forms\Concerns\InteractsWithForms;
-use Filament\Forms\Contracts\HasForms;
-use Filament\Forms\Form;
-use Filament\Forms\Get;
-use Filament\Forms\Set;
 use Filament\Notifications\Notification;
 use Filament\Pages\Concerns\InteractsWithHeaderActions;
 use Filament\Pages\Page;
-use Filament\Support\Enums\MaxWidth;
+use Filament\Schemas\Components\Actions;
+use Filament\Schemas\Components\Component;
+use Filament\Schemas\Components\Group;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\StateCasts\BooleanStateCast;
+use Filament\Schemas\Components\Tabs;
+use Filament\Schemas\Components\Tabs\Tab;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
+use Filament\Schemas\Contracts\HasSchemas;
+use Filament\Schemas\Schema;
+use Filament\Support\Enums\Width;
 use Illuminate\Http\Client\Factory;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Notification as MailNotification;
+use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
 
 /**
- * @property Form $form
+ * @property Schema $form
  */
-class Settings extends Page implements HasForms
+class Settings extends Page implements HasSchemas
 {
     use CanCustomizeHeaderActions, InteractsWithHeaderActions {
         CanCustomizeHeaderActions::getHeaderActions insteadof InteractsWithHeaderActions;
@@ -54,9 +56,9 @@ class Settings extends Page implements HasForms
     use EnvironmentWriterTrait;
     use InteractsWithForms;
 
-    protected static ?string $navigationIcon = 'tabler-settings';
+    protected static string|\BackedEnum|null $navigationIcon = 'tabler-settings';
 
-    protected static string $view = 'filament.pages.settings';
+    protected string $view = 'filament.pages.settings';
 
     protected OAuthService $oauthService;
 
@@ -94,6 +96,11 @@ class Settings extends Page implements HasForms
         return trans('admin/setting.title');
     }
 
+    /**
+     * @return array<Component>
+     *
+     * @throws Exception
+     */
     protected function getFormSchema(): array
     {
         return [
@@ -110,7 +117,7 @@ class Settings extends Page implements HasForms
                         ->label(trans('admin/setting.navigation.captcha'))
                         ->icon('tabler-shield')
                         ->schema($this->captchaSettings())
-                        ->columns(3),
+                        ->columns(1),
                     Tab::make('mail')
                         ->label(trans('admin/setting.navigation.mail'))
                         ->icon('tabler-mail')
@@ -119,10 +126,11 @@ class Settings extends Page implements HasForms
                         ->label(trans('admin/setting.navigation.backup'))
                         ->icon('tabler-box')
                         ->schema($this->backupSettings()),
-                    Tab::make('OAuth')
+                    Tab::make('oauth')
                         ->label(trans('admin/setting.navigation.oauth'))
                         ->icon('tabler-brand-oauth')
-                        ->schema($this->oauthSettings()),
+                        ->schema($this->oauthSettings())
+                        ->columns(1),
                     Tab::make('misc')
                         ->label(trans('admin/setting.navigation.misc'))
                         ->icon('tabler-tool')
@@ -131,7 +139,9 @@ class Settings extends Page implements HasForms
         ];
     }
 
-    /** @return Component[] */
+    /** @return Component[]
+     * @throws Exception
+     */
     private function generalSettings(): array
     {
         return [
@@ -166,8 +176,7 @@ class Settings extends Page implements HasForms
                         ->offIcon('tabler-x')
                         ->onColor('success')
                         ->offColor('danger')
-                        ->formatStateUsing(fn ($state): bool => (bool) $state)
-                        ->afterStateUpdated(fn ($state, Set $set) => $set('APP_DEBUG', (bool) $state))
+                        ->stateCast(new BooleanStateCast(false))
                         ->default(env('APP_DEBUG', config('app.debug'))),
                 ]),
             Group::make()
@@ -186,19 +195,17 @@ class Settings extends Page implements HasForms
                         ->offIcon('tabler-x')
                         ->onColor('success')
                         ->offColor('danger')
-                        ->formatStateUsing(fn ($state) => (bool) $state)
-                        ->afterStateUpdated(fn ($state, Set $set) => $set('FILAMENT_UPLOADABLE_AVATARS', (bool) $state))
+                        ->stateCast(new BooleanStateCast(false))
                         ->default(env('FILAMENT_UPLOADABLE_AVATARS', config('panel.filament.uploadable-avatars'))),
                 ]),
             ToggleButtons::make('PANEL_USE_BINARY_PREFIX')
                 ->label(trans('admin/setting.general.unit_prefix'))
                 ->inline()
                 ->options([
-                    false => trans('admin/setting.general.decimal_prefix'),
-                    true => trans('admin/setting.general.binary_prefix'),
+                    0 => trans('admin/setting.general.decimal_prefix'),
+                    1 => trans('admin/setting.general.binary_prefix'),
                 ])
-                ->formatStateUsing(fn ($state): bool => (bool) $state)
-                ->afterStateUpdated(fn ($state, Set $set) => $set('PANEL_USE_BINARY_PREFIX', (bool) $state))
+                ->stateCast(new BooleanStateCast(false, true))
                 ->default(env('PANEL_USE_BINARY_PREFIX', config('panel.use_binary_prefix'))),
             ToggleButtons::make('APP_2FA_REQUIRED')
                 ->label(trans('admin/setting.general.2fa_requirement'))
@@ -214,7 +221,7 @@ class Settings extends Page implements HasForms
             Select::make('FILAMENT_WIDTH')
                 ->label(trans('admin/setting.general.display_width'))
                 ->native(false)
-                ->options(MaxWidth::class)
+                ->options(Width::class)
                 ->selectablePlaceholder(false)
                 ->default(env('FILAMENT_WIDTH', config('panel.filament.display-width'))),
             TagsInput::make('TRUSTED_PROXIES')
@@ -224,14 +231,14 @@ class Settings extends Page implements HasForms
                 ->placeholder(trans('admin/setting.general.trusted_proxies_help'))
                 ->default(env('TRUSTED_PROXIES', implode(',', Arr::wrap(config('trustedproxy.proxies')))))
                 ->hintActions([
-                    FormAction::make('clear')
+                    Action::make('clear')
                         ->label(trans('admin/setting.general.clear'))
                         ->color('danger')
                         ->icon('tabler-trash')
                         ->requiresConfirmation()
                         ->authorize(fn () => auth()->user()->can('update settings'))
                         ->action(fn (Set $set) => $set('TRUSTED_PROXIES', [])),
-                    FormAction::make('cloudflare')
+                    Action::make('cloudflare')
                         ->label(trans('admin/setting.general.set_to_cf'))
                         ->icon('tabler-brand-cloudflare')
                         ->authorize(fn () => auth()->user()->can('update settings'))
@@ -262,6 +269,8 @@ class Settings extends Page implements HasForms
 
     /**
      * @return Component[]
+     *
+     * @throws Exception
      */
     private function captchaSettings(): array
     {
@@ -281,12 +290,12 @@ class Settings extends Page implements HasForms
                         ->live()
                         ->default(env("CAPTCHA_{$id}_ENABLED")),
                     Actions::make([
-                        FormAction::make("disable_captcha_$id")
+                        Action::make("disable_captcha_$id")
                             ->visible(fn (Get $get) => $get("CAPTCHA_{$id}_ENABLED"))
                             ->label(trans('admin/setting.captcha.disable'))
                             ->color('danger')
                             ->action(fn (Set $set) => $set("CAPTCHA_{$id}_ENABLED", false)),
-                        FormAction::make("enable_captcha_$id")
+                        Action::make("enable_captcha_$id")
                             ->visible(fn (Get $get) => !$get("CAPTCHA_{$id}_ENABLED"))
                             ->label(trans('admin/setting.captcha.enable'))
                             ->color('success')
@@ -304,6 +313,8 @@ class Settings extends Page implements HasForms
 
     /**
      * @return Component[]
+     *
+     * @throws Exception
      */
     private function mailSettings(): array
     {
@@ -323,7 +334,7 @@ class Settings extends Page implements HasForms
                 ->live()
                 ->default(env('MAIL_MAILER', config('mail.default')))
                 ->hintAction(
-                    FormAction::make('test')
+                    Action::make('test')
                         ->label(trans('admin/setting.mail.test_mail'))
                         ->icon('tabler-send')
                         ->hidden(fn (Get $get) => $get('MAIL_MAILER') === 'log')
@@ -381,6 +392,7 @@ class Settings extends Page implements HasForms
             Section::make(trans('admin/setting.mail.from_settings'))
                 ->description(trans('admin/setting.mail.from_settings_help'))
                 ->columns()
+                ->columnSpanFull()
                 ->schema([
                     TextInput::make('MAIL_FROM_ADDRESS')
                         ->label(trans('admin/setting.mail.from_address'))
@@ -394,6 +406,7 @@ class Settings extends Page implements HasForms
                 ]),
             Section::make(trans('admin/setting.mail.smtp.smtp_title'))
                 ->columns()
+                ->columnSpanFull()
                 ->visible(fn (Get $get) => $get('MAIL_MAILER') === 'smtp')
                 ->schema([
                     TextInput::make('MAIL_HOST')
@@ -430,6 +443,7 @@ class Settings extends Page implements HasForms
                 ]),
             Section::make(trans('admin/setting.mail.mailgun.mailgun_title'))
                 ->columns()
+                ->columnSpanFull()
                 ->visible(fn (Get $get) => $get('MAIL_MAILER') === 'mailgun')
                 ->schema([
                     TextInput::make('MAILGUN_DOMAIN')
@@ -450,6 +464,8 @@ class Settings extends Page implements HasForms
 
     /**
      * @return Component[]
+     *
+     * @throws Exception
      */
     private function backupSettings(): array
     {
@@ -461,12 +477,14 @@ class Settings extends Page implements HasForms
                 ->options([
                     Backup::ADAPTER_DAEMON => 'Wings',
                     Backup::ADAPTER_AWS_S3 => 'S3',
+                    Backup::ADAPTER_RESTIC => 'Restic',
                 ])
                 ->live()
                 ->default(env('APP_BACKUP_DRIVER', config('backups.default'))),
             Section::make(trans('admin/setting.backup.throttle'))
                 ->description(trans('admin/setting.backup.throttle_help'))
                 ->columns()
+                ->columnSpanFull()
                 ->schema([
                     TextInput::make('BACKUP_THROTTLE_LIMIT')
                         ->label(trans('admin/setting.backup.limit'))
@@ -482,9 +500,45 @@ class Settings extends Page implements HasForms
                         ->suffix('Seconds')
                         ->default(config('backups.throttles.period')),
                 ]),
+            Section::make(trans('admin/setting.backup.restic.restic_title'))
+                ->description(new HtmlString(trans('admin/setting.backup.restic.restic_help')))
+                ->columns()
+                ->visible(fn (Get $get) => $get('APP_BACKUP_DRIVER') === Backup::ADAPTER_RESTIC)
+                ->schema([
+                    TextInput::make('RESTIC_REPOSITORY')
+                        ->label(trans('admin/setting.backup.restic.repository'))
+                        ->hintIcon('tabler-question-mark')
+                        ->hintIconTooltip(trans('admin/setting.backup.restic.repository_help'))
+                        ->required(fn (Get $get) => $get('RESTIC_USE_S3') === false)
+                        ->visible(fn (Get $get) => $get('RESTIC_USE_S3') === false)
+                        ->default(config('backups.disks.restic.repository')),
+                    TextInput::make('RESTIC_PASSWORD')
+                        ->label(trans('admin/setting.backup.restic.password'))
+                        ->hintIcon('tabler-question-mark')
+                        ->hintIconTooltip(trans('admin/setting.backup.restic.password_help'))
+                        ->required()
+                        ->password()
+                        ->default(config('backups.disks.restic.password')),
+                    TextInput::make('RESTIC_RETRY_LOCK_SECONDS')
+                        ->label(trans('admin/setting.backup.restic.retry_lock_seconds'))
+                        ->hintIcon('tabler-question-mark')
+                        ->hintIconTooltip(trans('admin/setting.backup.restic.retry_lock_seconds_help'))
+                        ->required()
+                        ->numeric()
+                        ->minValue(1)
+                        ->suffix('Seconds')
+                        ->default(config('backups.disks.restic.retry_lock_seconds')),
+                    Toggle::make('RESTIC_USE_S3')
+                        ->label(trans('admin/setting.backup.restic.use_s3'))
+                        ->live()
+                        ->inline(false)
+                        ->formatStateUsing(fn ($state): bool => (bool) $state)
+                        ->afterStateUpdated(fn ($state, Set $set) => $set('RESTIC_USE_S3', (bool) $state))
+                        ->default(config('backups.disks.restic.use_s3')),
+                ]),
             Section::make(trans('admin/setting.backup.s3.s3_title'))
                 ->columns()
-                ->visible(fn (Get $get) => $get('APP_BACKUP_DRIVER') === Backup::ADAPTER_AWS_S3)
+                ->visible(fn (Get $get) => $get('APP_BACKUP_DRIVER') === Backup::ADAPTER_AWS_S3 || ($get('APP_BACKUP_DRIVER') === Backup::ADAPTER_RESTIC && $get('RESTIC_USE_S3')))
                 ->schema([
                     TextInput::make('AWS_DEFAULT_REGION')
                         ->label(trans('admin/setting.backup.s3.default_region'))
@@ -497,14 +551,23 @@ class Settings extends Page implements HasForms
                     TextInput::make('AWS_SECRET_ACCESS_KEY')
                         ->label(trans('admin/setting.backup.s3.secret_key'))
                         ->required()
+                        ->password()
                         ->default(config('backups.disks.s3.secret')),
                     TextInput::make('AWS_BACKUPS_BUCKET')
                         ->label(trans('admin/setting.backup.s3.bucket'))
                         ->required()
+                        ->regex('/^(?!.*\.\.)(?!\d{1,3}(\.\d{1,3}){3}$)[a-z0-9][a-z0-9.-]{3,61}[a-z0-9]$/')
+                        ->validationMessages([
+                            'regex' => new HtmlString(trans('admin/setting.backup.s3.bucket_validation')),
+                        ])
                         ->default(config('backups.disks.s3.bucket')),
                     TextInput::make('AWS_ENDPOINT')
                         ->label(trans('admin/setting.backup.s3.endpoint'))
                         ->required()
+                        ->regex('/https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&\/\/=]*)/')
+                        ->validationMessages([
+                            'regex' => trans('admin/setting.backup.s3.endpoint_validation'),
+                        ])
                         ->default(config('backups.disks.s3.endpoint')),
                     Toggle::make('AWS_USE_PATH_STYLE_ENDPOINT')
                         ->label(trans('admin/setting.backup.s3.use_path_style_endpoint'))
@@ -514,8 +577,7 @@ class Settings extends Page implements HasForms
                         ->onColor('success')
                         ->offColor('danger')
                         ->live()
-                        ->formatStateUsing(fn ($state): bool => (bool) $state)
-                        ->afterStateUpdated(fn ($state, Set $set) => $set('AWS_USE_PATH_STYLE_ENDPOINT', (bool) $state))
+                        ->stateCast(new BooleanStateCast(false))
                         ->default(env('AWS_USE_PATH_STYLE_ENDPOINT', config('backups.disks.s3.use_path_style_endpoint'))),
                 ]),
         ];
@@ -523,6 +585,8 @@ class Settings extends Page implements HasForms
 
     /**
      * @return Component[]
+     *
+     * @throws Exception
      */
     private function oauthSettings(): array
     {
@@ -543,17 +607,17 @@ class Settings extends Page implements HasForms
                         ->live()
                         ->default(env($key)),
                     Actions::make([
-                        FormAction::make("disable_oauth_$id")
+                        Action::make("disable_oauth_$id")
                             ->visible(fn (Get $get) => $get($key))
                             ->label(trans('admin/setting.oauth.disable'))
                             ->color('danger')
                             ->action(fn (Set $set) => $set($key, false)),
-                        FormAction::make("enable_oauth_$id")
+                        Action::make("enable_oauth_$id")
                             ->visible(fn (Get $get) => !$get($key))
                             ->label(trans('admin/setting.oauth.enable'))
                             ->color('success')
                             ->steps($schema->getSetupSteps())
-                            ->modalHeading(trans('admin/setting.oauth.enable') . ' ' . $schema->getName())
+                            ->modalHeading(trans('admin/setting.oauth.enable_schema', ['schema' => $schema->getName()]))
                             ->modalSubmitActionLabel(trans('admin/setting.oauth.enable'))
                             ->modalCancelAction(false)
                             ->action(function ($data, Set $set) use ($key) {
@@ -578,6 +642,8 @@ class Settings extends Page implements HasForms
 
     /**
      * @return Component[]
+     *
+     * @throws Exception
      */
     private function miscSettings(): array
     {
@@ -596,8 +662,7 @@ class Settings extends Page implements HasForms
                         ->offColor('danger')
                         ->live()
                         ->columnSpanFull()
-                        ->formatStateUsing(fn ($state): bool => (bool) $state)
-                        ->afterStateUpdated(fn ($state, Set $set) => $set('PANEL_CLIENT_ALLOCATIONS_ENABLED', (bool) $state))
+                        ->stateCast(new BooleanStateCast(false))
                         ->default(env('PANEL_CLIENT_ALLOCATIONS_ENABLED', config('panel.client_features.allocations.enabled'))),
                     TextInput::make('PANEL_CLIENT_ALLOCATIONS_RANGE_START')
                         ->label(trans('admin/setting.misc.auto_allocation.start'))
@@ -688,8 +753,7 @@ class Settings extends Page implements HasForms
                         ->onColor('success')
                         ->offColor('danger')
                         ->live()
-                        ->formatStateUsing(fn ($state): bool => (bool) $state)
-                        ->afterStateUpdated(fn ($state, Set $set) => $set('APP_ACTIVITY_HIDE_ADMIN', (bool) $state))
+                        ->stateCast(new BooleanStateCast(false))
                         ->default(env('APP_ACTIVITY_HIDE_ADMIN', config('activity.hide_admin_activity'))),
                 ]),
             Section::make(trans('admin/setting.misc.api.title'))
@@ -767,8 +831,19 @@ class Settings extends Page implements HasForms
             $data = $this->form->getState();
             unset($data['ConsoleFonts']);
 
-            // Convert bools to a string, so they are correctly written to the .env file
-            $data = array_map(fn ($value) => is_bool($value) ? ($value ? 'true' : 'false') : $value, $data);
+            $data = array_map(function ($value) {
+                // Convert bools to a string, so they are correctly written to the .env file
+                if (is_bool($value)) {
+                    return $value ? 'true' : 'false';
+                }
+
+                // Convert enum to its value
+                if ($value instanceof BackedEnum) {
+                    return $value->value;
+                }
+
+                return $value;
+            }, $data);
 
             $this->writeToEnvironment($data);
 

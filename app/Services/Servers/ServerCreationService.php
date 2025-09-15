@@ -2,6 +2,11 @@
 
 namespace App\Services\Servers;
 
+use Throwable;
+use App\Exceptions\DisplayException;
+use Illuminate\Validation\ValidationException;
+use App\Exceptions\Service\Deployment\NoViableAllocationException;
+use App\Exceptions\Model\DataValidationException;
 use App\Enums\ServerState;
 use App\Exceptions\Service\Deployment\NoViableNodeException;
 use Illuminate\Http\Client\ConnectionException;
@@ -41,10 +46,10 @@ class ServerCreationService
      *
      * @param  array<mixed, mixed>  $data
      *
-     * @throws \Throwable
-     * @throws \App\Exceptions\DisplayException
-     * @throws \Illuminate\Validation\ValidationException
-     * @throws \App\Exceptions\Service\Deployment\NoViableAllocationException
+     * @throws Throwable
+     * @throws DisplayException
+     * @throws ValidationException
+     * @throws NoViableAllocationException
      */
     public function handle(array $data, ?DeploymentObject $deployment = null): Server
     {
@@ -56,8 +61,8 @@ class ServerCreationService
         $egg = Egg::query()->findOrFail($data['egg_id']);
 
         // Fill missing fields from egg
-        $data['image'] = $data['image'] ?? collect($egg->docker_images)->first();
-        $data['startup'] = $data['startup'] ?? $egg->startup;
+        $data['image'] ??= collect($egg->docker_images)->first();
+        $data['startup'] ??= $egg->startup;
 
         // If a deployment object has been passed we need to get the allocation and node that the server should use.
         if ($deployment) {
@@ -87,7 +92,7 @@ class ServerCreationService
                 $data['node_id'] = $nodes->first();
             }
         } else {
-            $data['node_id'] = Allocation::find($data['allocation_id'])?->node_id;
+            $data['node_id'] ??= Allocation::find($data['allocation_id'])?->node_id;
         }
 
         Assert::false(empty($data['node_id']), 'Expected a non-empty node_id in server creation data.');
@@ -101,7 +106,7 @@ class ServerCreationService
         //
         // If that connection fails out we will attempt to perform a cleanup by just
         // deleting the server itself from the system.
-        /** @var \App\Models\Server $server */
+        /** @var Server $server */
         $server = $this->connection->transaction(function () use ($data, $eggVariableData) {
             // Create the server and assign any additional allocations to it.
             $server = $this->createModel($data);
@@ -133,7 +138,7 @@ class ServerCreationService
      *
      * @param  array<array-key, mixed>  $data
      *
-     * @throws \App\Exceptions\Model\DataValidationException
+     * @throws DataValidationException
      */
     private function createModel(array $data): Server
     {
@@ -179,9 +184,15 @@ class ServerCreationService
             $records = array_merge($records, $data['allocation_additional']);
         }
 
-        Allocation::query()->whereIn('id', $records)->update([
-            'server_id' => $server->id,
-        ]);
+        Allocation::query()
+            ->whereIn('id', array_values(array_unique($records)))
+            ->whereNull('server_id')
+            ->lockForUpdate()
+            ->get()
+            ->each(function (Allocation $allocation) use ($server) {
+                $allocation->server_id = $server->id;
+                $allocation->save();
+            });
     }
 
     /**
