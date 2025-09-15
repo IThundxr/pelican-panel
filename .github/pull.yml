@@ -1,0 +1,7 @@
+version: "1"
+rules:
+  - base: main
+    upstream: pelican-dev:main
+    mergeMethod: merge
+    conflictReviewers:
+      - ithundxr

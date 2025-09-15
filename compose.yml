@@ -1,7 +1,7 @@
 x-common:
   panel:
     &panel-environment
-    APP_URL: "https://localhost" # can be set to 'http://localhost' on port 80 only
+    APP_URL: "http://localhost" # can be set to 'http://localhost' on port 80 only
     ADMIN_EMAIL: "USEYOUROWNEMAILHERE@example.com"
 
     APP_DEBUG: "false"
@@ -27,9 +27,11 @@ x-common:
 
 services:
   panel:
-    image: ghcr.io/pelican-dev/panel:latest
-    build: .
-    restart: always
+    image: pelican-dev:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    restart: no
     networks:
       - default
     ports:
