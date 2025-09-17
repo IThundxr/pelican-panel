@@ -7,7 +7,6 @@ use App\Extensions\Backups\BackupManager;
 use App\Http\Controllers\Controller;
 use App\Models\Backup;
 use App\Models\Node;
-use App\Models\Server;
 use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
@@ -46,14 +45,13 @@ class BackupRemoteUploadController extends Controller
             $model = Backup::query()
                 ->where('uuid', $backup)
                 ->firstOrFail();
-        }
 
-        // Check that the backup is "owned" by the node making the request. This avoids other nodes
-        // from messing with backups that they don't own.
-        /** @var Server $server */
-        $server = $model->server;
-        if ($server->node_id !== $node->id) {
-            throw new HttpForbiddenException('You do not have permission to access that backup.');
+            // Check that the backup is "owned" by the node making the request. This avoids other nodes
+            // from messing with backups that they don't own.
+            $server = $model->server;
+            if ($server->node_id !== $node->id) {
+                throw new HttpForbiddenException('You do not have permission to access that backup.');
+            }
         }
 
         // Prevent backups that have already been completed from trying to
