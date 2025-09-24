@@ -9,7 +9,7 @@ use App\Services\Databases\DatabaseManagementService;
 use Exception;
 use Illuminate\Database\ConnectionInterface;
 use Illuminate\Http\Client\ConnectionException;
-use Symfony\Component\HttpFoundation\Response as ResponseAlias;
+use Symfony\Component\HttpFoundation\Response;
 use Throwable;
 
 class ServerDeletionService
@@ -50,7 +50,7 @@ class ServerDeletionService
             // go ahead and bail out. We specifically ignore a 404 since that can be assumed
             // to be a safe error, meaning the server doesn't exist at all on daemon so there
             // is no reason we need to bail out from that.
-            if (!$this->force && $exception->getCode() !== ResponseAlias::HTTP_NOT_FOUND) {
+            if (!$this->force && $exception->getCode() !== Response::HTTP_NOT_FOUND) {
                 throw $exception;
             }
 
