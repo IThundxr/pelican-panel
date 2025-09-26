@@ -43,6 +43,7 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Throwable;
 
@@ -238,7 +239,13 @@ class BackupResource extends Resource
                                     ->title(trans('server/backup.actions.delete.notification_success'))
                                     ->success()
                                     ->send();
-                            } catch (ConnectionException) {
+                            } catch (ConnectionException $err) {
+                                Log::error("Failed to delete backup: {$backup->name}", [
+                                    'backup' => $backup,
+                                    'exception' => $err->getMessage(),
+                                    'trace' => $err->getTraceAsString(),
+                                ]);
+
                                 Notification::make()
                                     ->title(trans('server/backup.actions.delete.notification_fail'))
                                     ->body(trans('server/backup.actions.delete.notification_fail_body'))
