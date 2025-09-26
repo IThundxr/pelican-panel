@@ -11,7 +11,6 @@ use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Throwable;
 
 class BackupRemoteUploadController extends Controller
@@ -46,18 +45,13 @@ class BackupRemoteUploadController extends Controller
                 ->where('uuid', $backup)
                 ->firstOrFail();
 
+
             // Check that the backup is "owned" by the node making the request. This avoids other nodes
             // from messing with backups that they don't own.
             $server = $model->server;
             if ($server->node_id !== $node->id) {
                 throw new HttpForbiddenException('You do not have permission to access that backup.');
             }
-        }
-
-        // Prevent backups that have already been completed from trying to
-        // be uploaded again.
-        if (!is_null($model->completed_at)) {
-            throw new ConflictHttpException('This backup is already in a completed state.');
         }
 
         return $this->backupManager
