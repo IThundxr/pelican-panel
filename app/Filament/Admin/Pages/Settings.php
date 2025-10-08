@@ -83,7 +83,7 @@ class Settings extends Page implements HasSchemas
 
     public static function canAccess(): bool
     {
-        return auth()->user()->can('view settings');
+        return user()?->can('view settings');
     }
 
     public function getTitle(): string
@@ -107,7 +107,7 @@ class Settings extends Page implements HasSchemas
             Tabs::make('Tabs')
                 ->columns()
                 ->persistTabInQueryString()
-                ->disabled(fn () => !auth()->user()->can('update settings'))
+                ->disabled(fn () => !user()?->can('update settings'))
                 ->tabs([
                     Tab::make('general')
                         ->label(trans('admin/setting.navigation.general'))
@@ -234,12 +234,12 @@ class Settings extends Page implements HasSchemas
                         ->color('danger')
                         ->icon('tabler-trash')
                         ->requiresConfirmation()
-                        ->authorize(fn () => auth()->user()->can('update settings'))
+                        ->authorize(fn () => user()?->can('update settings'))
                         ->action(fn (Set $set) => $set('TRUSTED_PROXIES', [])),
                     Action::make('cloudflare')
                         ->label(trans('admin/setting.general.set_to_cf'))
                         ->icon('tabler-brand-cloudflare')
-                        ->authorize(fn () => auth()->user()->can('update settings'))
+                        ->authorize(fn () => user()?->can('update settings'))
                         ->action(function (Factory $client, Set $set) {
                             $ips = collect();
 
@@ -336,7 +336,7 @@ class Settings extends Page implements HasSchemas
                         ->label(trans('admin/setting.mail.test_mail'))
                         ->icon('tabler-send')
                         ->hidden(fn (Get $get) => $get('MAIL_MAILER') === 'log')
-                        ->authorize(fn () => auth()->user()->can('update settings'))
+                        ->authorize(fn () => user()?->can('update settings'))
                         ->action(function (Get $get) {
                             // Store original mail configuration
                             $originalConfig = [
@@ -369,8 +369,8 @@ class Settings extends Page implements HasSchemas
                                     'services.mailgun.endpoint' => $get('MAILGUN_ENDPOINT'),
                                 ]);
 
-                                MailNotification::route('mail', auth()->user()->email)
-                                    ->notify(new MailTested(auth()->user()));
+                                MailNotification::route('mail', user()?->email)
+                                    ->notify(new MailTested(user()));
 
                                 Notification::make()
                                     ->title(trans('admin/setting.mail.test_mail_sent'))
@@ -869,7 +869,7 @@ class Settings extends Page implements HasSchemas
         return [
             Action::make('save')
                 ->action('save')
-                ->authorize(fn () => auth()->user()->can('update settings'))
+                ->authorize(fn () => user()?->can('update settings'))
                 ->keyBindings(['mod+s']),
         ];
 
