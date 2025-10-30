@@ -182,7 +182,6 @@ class Settings extends Page implements HasSchemas
                 ->schema([
                     Select::make('FILAMENT_AVATAR_PROVIDER')
                         ->label(trans('admin/setting.general.avatar_provider'))
-                        ->native(false)
                         ->options($this->avatarService->getMappings())
                         ->selectablePlaceholder(false)
                         ->default(env('FILAMENT_AVATAR_PROVIDER', config('panel.filament.avatar-provider'))),
@@ -218,7 +217,6 @@ class Settings extends Page implements HasSchemas
                 ->default(env('APP_2FA_REQUIRED', config('panel.auth.2fa_required'))),
             Select::make('FILAMENT_WIDTH')
                 ->label(trans('admin/setting.general.display_width'))
-                ->native(false)
                 ->options(Width::class)
                 ->selectablePlaceholder(false)
                 ->default(env('FILAMENT_WIDTH', config('panel.filament.display-width'))),
