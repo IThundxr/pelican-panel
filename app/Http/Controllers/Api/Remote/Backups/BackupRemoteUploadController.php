@@ -51,8 +51,8 @@ class BackupRemoteUploadController extends Controller
             ->where('uuid', $backup)
             ->firstOrFail();
 
-        // Check that the backup is "owned" by the node making the request. This avoids other nodes
-        // from messing with backups that they don't own.
+            // Check that the backup is "owned" by the node making the request. This avoids other nodes
+            // from messing with backups that they don't own.
         /** @var Server $server */
         $server = $model->server;
         if ($server->node_id !== $node->id) {

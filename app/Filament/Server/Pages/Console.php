@@ -185,6 +185,17 @@ class Console extends Page
                     ->disabled(fn (Server $server) => $server->isInConflictState() || !$this->status->isStoppable())
                     ->action(fn (Server $server) => $this->dispatch('setServerState', uuid: $server->uuid, state: 'stop'))
                     ->size(Size::ExtraLarge),
+                Action::make('sigterm')
+                    ->label(trans('server/console.power_actions.sigterm'))
+                    ->color('warning')
+                    ->icon('tabler-clock-stop')
+                    ->tooltip(trans('server/console.power_actions.sigterm_tooltip'))
+                    ->requiresConfirmation()
+                    ->authorize(fn (Server $server) => user()?->can(Permission::ACTION_CONTROL_STOP, $server))
+                    ->visible(fn () => $this->status->isKillable())
+                    ->disabled(fn (Server $server) => $server->isInConflictState() || !$this->status->isKillable())
+                    ->action(fn (Server $server) => $this->dispatch('setServerState', uuid: $server->uuid, state: 'sigterm'))
+                    ->size(Size::ExtraLarge),
                 Action::make('kill')
                     ->label(trans('server/console.power_actions.kill'))
                     ->color('danger')
