@@ -10,6 +10,8 @@ return [
         'start' => 'Start',
         'stop' => 'Stop',
         'restart' => 'Restart',
+        'sigterm' => 'Sigterm',
+        'sigterm_tooltip' => 'This will attempt to safely stop the server by sending a sigterm, but this may result in data corruption and/or data loss!',
         'kill' => 'Kill',
         'kill_tooltip' => 'This can result in data corruption and/or data loss!',
     ],
