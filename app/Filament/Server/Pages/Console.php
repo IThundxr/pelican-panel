@@ -191,7 +191,7 @@ class Console extends Page
                     ->icon('tabler-clock-stop')
                     ->tooltip(trans('server/console.power_actions.sigterm_tooltip'))
                     ->requiresConfirmation()
-                    ->authorize(fn (Server $server) => user()?->can(Permission::ACTION_CONTROL_STOP, $server))
+                    ->authorize(fn (Server $server) => user()?->can(SubuserPermission::ControlStop, $server))
                     ->visible(fn () => $this->status->isKillable())
                     ->disabled(fn (Server $server) => $server->isInConflictState() || !$this->status->isKillable())
                     ->action(fn (Server $server) => $this->dispatch('setServerState', uuid: $server->uuid, state: 'sigterm'))
