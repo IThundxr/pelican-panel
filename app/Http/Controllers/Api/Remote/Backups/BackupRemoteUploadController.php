@@ -54,8 +54,33 @@ class BackupRemoteUploadController extends Controller
             }
         }
 
-        return $this->backupManager
-            ->adapter($adapter)
-            ->provideUploadInfo($size, $model, $server);
+        // Set the upload_id on the backup in the database.
+        $model->update(['upload_id' => $params['UploadId']]);
+
+        return new JsonResponse([
+            'parts' => $parts,
+            'part_size' => $maxPartSize,
+        ]);
+    }
+
+    /**
+     * Get the configured maximum size of a single part in the multipart upload.
+     *
+     * The function tries to retrieve a configured value from the configuration.
+     * If no value is specified, a fallback value will be used.
+     *
+     * Note if the received config cannot be converted to int (0), is zero or is negative,
+     * the fallback value will be used too.
+     *
+     * The fallback value is {@see BackupRemoteUploadController::DEFAULT_MAX_PART_SIZE}.
+     */
+    private function getConfiguredMaxPartSize(): int
+    {
+        $maxPartSize = config('backups.max_part_size', self::DEFAULT_MAX_PART_SIZE);
+        if ($maxPartSize <= 0) {
+            $maxPartSize = self::DEFAULT_MAX_PART_SIZE;
+        }
+
+        return $maxPartSize;
     }
 }
