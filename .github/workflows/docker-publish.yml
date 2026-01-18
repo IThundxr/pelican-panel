@@ -90,7 +90,7 @@ jobs:
           flavor: |
             latest=false
           tags: |
-            type=raw,value=latest,enable=${{ github.event_name == 'release' && github.event.action == 'published' && github.event.release.prerelease == false }}
+            type=raw,value=latest,enable=${{ github.event_name == 'release' && (github.event.action == 'published' || github.event.action == 'completed') && github.event.release.prerelease == false }}
             type=ref,event=tag
             type=ref,event=branch
 
@@ -137,13 +137,13 @@ jobs:
           rm base-php-arm64.tar base-php-amd64.tar
 
       - name: Update version in config/app.php (tag)
-        if: "github.event_name == 'release' && github.event.action == 'published'"
+        if: "github.event_name == 'release' && (github.event.action == 'published' || github.event.action == 'completed')"
         run: |
           sed -i "s/'version' => 'canary',/'version' => '${{ steps.build_info.outputs.version_tag }}',/" config/app.php
 
       - name: Build and Push (tag)
         uses: docker/build-push-action@v6
-        if: "github.event_name == 'release' && github.event.action == 'published'"
+        if: "github.event_name == 'release' && (github.event.action == 'published' || github.event.action == 'completed')"
         with:
           context: .
           file: ./Dockerfile
