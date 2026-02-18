@@ -77,7 +77,7 @@ class BackupResource extends Resource
         /** @var Server $server */
         $server = Filament::getTenant();
 
-        return $server->backup_limit;
+        return $server->backup_limit ?? 0;
     }
 
     public static function defaultForm(Schema $schema): Schema
