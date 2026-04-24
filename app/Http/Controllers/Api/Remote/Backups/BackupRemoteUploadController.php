@@ -50,7 +50,7 @@ class BackupRemoteUploadController extends Controller
             // from messing with backups that they don't own.
             $server = $model->server;
             if ($server->node_id !== $node->id) {
-                throw new HttpForbiddenException('You do not have permission to access that backup.');
+                throw new HttpForbiddenException('Requesting node does not have permission to access this server.');
             }
         }
 
