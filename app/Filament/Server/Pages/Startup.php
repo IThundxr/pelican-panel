@@ -149,10 +149,14 @@ class Startup extends ServerFormPage
         return parent::canAccess() && user()?->can(SubuserPermission::StartupRead, Filament::getTenant());
     }
 
-    public function update(?string $state, ServerVariable $serverVariable): void
+    public function update(null|string|bool $state, ServerVariable $serverVariable): void
     {
         if (!$serverVariable->variable->user_editable) {
             return;
+        }
+
+        if (is_bool($state)) {
+            $state = $state ? '1' : '0';
         }
 
         $original = $serverVariable->variable_value;
